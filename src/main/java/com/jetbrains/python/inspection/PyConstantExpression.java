@@ -2,7 +2,9 @@ package com.jetbrains.python.inspection;
 
 import com.intellij.codeInspection.LocalInspectionToolSession;
 import com.intellij.codeInspection.ProblemsHolder;
-import com.intellij.psi.PsiElementVisitor;
+import com.intellij.lang.ASTNode;
+import com.intellij.psi.*;
+import com.intellij.psi.tree.IElementType;
 import com.jetbrains.python.inspections.PyInspection;
 import com.jetbrains.python.inspections.PyInspectionVisitor;
 import com.jetbrains.python.psi.*;
@@ -37,6 +39,14 @@ public class PyConstantExpression extends PyInspection {
             final PyExpression condition = pyIfPart.getCondition();
             if (condition instanceof PyBoolLiteralExpression) {
                 registerProblem(condition, "The condition is always " + ((PyBoolLiteralExpression) condition).getValue());
+            } else if (condition instanceof PyBinaryExpression) {
+                PsiElement opSign = ((PyBinaryExpression) condition).getPsiOperator();
+
+                PsiElement leftExpr = condition.getFirstChild();
+                int left = Integer.parseInt(leftExpr.getText());
+
+                PsiElement rightExpr = condition.getLastChild();
+                int right = Integer.parseInt(rightExpr.getText());
             }
         }
     }
