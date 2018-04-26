@@ -1,2 +1,2 @@
-if 10 >= 0:
-    pass
+# if not(3 > 4) or 5 > 10:
+#     pass
