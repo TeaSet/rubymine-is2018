@@ -36,41 +36,37 @@ public class PyConstantExpression extends PyInspection {
             }
         }
 
-        //Apply 'divide et impera'
-        private boolean processBinaryExpr(PyBinaryExpression element) {
+        private boolean processExpression(PsiElement element) {
             boolean res = false;
-            PsiElement leftSide = element.getFirstChild();
-            PsiElement rightSide = element.getLastChild();
 
-            if (leftSide instanceof PyNumericLiteralExpression || rightSide instanceof PyNumericLiteralExpression) {
+            if (element instanceof PyBinaryExpression) {
+                PyElementType operator = ((PyBinaryExpression) element).getOperator();
+
+                PsiElement leftSide = element.getFirstChild();
                 int left_num = Integer.parseInt(leftSide.getText());
+
+                PsiElement rightSide = element.getLastChild();
                 int right_num = Integer.parseInt(rightSide.getText());
 
-                PyElementType loc_oper = element.getOperator();
-
-                if (PyTokenTypes.GT.equals(loc_oper)) {
+                if (PyTokenTypes.GT.equals(operator)) {
                     res = left_num > right_num;
                 }
-                if (PyTokenTypes.LT.equals(loc_oper)) {
+                if (PyTokenTypes.LT.equals(operator)) {
                     res = left_num < right_num;
                 }
-                if (PyTokenTypes.EQEQ.equals(loc_oper)) {
+                if (PyTokenTypes.EQEQ.equals(operator)) {
                     res = left_num == right_num;
                 }
-                if (PyTokenTypes.NE.equals(loc_oper)) {
+                if (PyTokenTypes.NE.equals(operator)) {
                     res = left_num != right_num;
                 }
-            } else {
-                PyElementType par_oper = element.getOperator();
-                boolean res_left = processBinaryExpr((PyBinaryExpression) leftSide);
-                boolean res_right = processBinaryExpr((PyBinaryExpression) rightSide);
-                if (PyTokenTypes.AND_KEYWORD.equals(par_oper)) {
-                    res = res_left && res_right;
-                }
-                if (PyTokenTypes.OR_KEYWORD.equals(par_oper)) {
-                    res = res_left || res_right;
-                }
+            } else if (element instanceof PyPrefixExpression)  {
+                res = processExpression(element.getFirstChild().getNextSibling());
 
+                res = res ? false : true;
+
+            } else if (element instanceof PyParenthesizedExpression) {
+                res = processExpression(element.getFirstChild().getNextSibling());
             }
             return res;
         }
@@ -81,8 +77,24 @@ public class PyConstantExpression extends PyInspection {
 
             if (condition instanceof PyBoolLiteralExpression) {
                 registerProblem(condition, "The condition is always " + ((PyBoolLiteralExpression) condition).getValue());
-            } else if (condition instanceof PyBinaryExpression) {
-                boolean res = processBinaryExpr((PyBinaryExpression) condition);
+            } else {
+                boolean res = false;
+                //Simple way: when first and last child are already PyNumericLiteralExpression
+                if (condition.getFirstChild() instanceof PyNumericLiteralExpression ||
+                        condition.getLastChild() instanceof PyNumericLiteralExpression) {
+                    res = processExpression(condition);
+                } else {
+                    //Apply specific 'divide et impera' method
+                    boolean left_res = processExpression(condition.getFirstChild());
+                    boolean right_res = processExpression(condition.getLastChild());
+                    PyElementType operator = ((PyBinaryExpression) condition).getOperator();
+                    if (PyTokenTypes.AND_KEYWORD.equals(operator)) {
+                        res = left_res && right_res;
+                    }
+                    if (PyTokenTypes.OR_KEYWORD.equals(operator)) {
+                        res = left_res || right_res;
+                    }
+                }
                 registerProblem(condition, "The condition is always " + res);
             }
         }
